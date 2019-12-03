@@ -1223,8 +1223,10 @@ StatisticService.prototype.getBlockReward = function (height, callback) {
       var subsidy = new BN(12.5 * 1e8 * (height - 1) / 20000)
     } else if (height < 20000) {
       var subsidy = new BN(12.5 * 1e8 * height / 20000)
-    } else {
+    } else if (height < 653600) {
       var subsidy = new BN(12.5 * 1e8)
+    } else {
+      var subsidy = new BN(5 * 1e8)
     }
 
     subsidy = subsidy.shrn(halvings);
@@ -1253,8 +1255,10 @@ StatisticService.prototype.getBlockRewardr = function (height) {
       var subsidy = new BN(12.5 * 1e8 * (height - 1) / 20000)
     } else if (height < 20000) {
       var subsidy = new BN(12.5 * 1e8 * height / 20000)
-    } else {
+    } else if (height < 653600) {
       var subsidy = new BN(12.5 * 1e8)
+    } else {
+      var subsidy = new BN(5 * 1e8)
     }
     subsidy = subsidy.shrn(halvings);
 
@@ -1280,7 +1284,7 @@ StatisticService.prototype.getPoolInfo = function (paddress) {
 StatisticService.prototype.getTotalSupply = function () {
     var blockHeight = this.node.services.bitcoind.height;
 
-    var supply = (new BigNumber(0)).plus((blockHeight) * 12.5).minus(125000); // FIXME This is accurate only for blockheight > 20000. minus slowstart
+    var supply = (new BigNumber(0)).plus((blockHeight) * 12.5).minus(125000); // TODO FIXME This is accurate only for blockheight > 20000. minus slowstart
 
     return supply;
 };
