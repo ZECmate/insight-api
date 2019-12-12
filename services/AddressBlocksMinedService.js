@@ -6,7 +6,7 @@ var BN = bitcore.crypto.BN;
 
 function AddressBlocksMinedService(options) {
 
-    this.common = new Common({log: options.node.log});
+    this.common = new Common({ log: options.node.log });
     this.lastBlockRepository = options.lastBlockRepository;
     this.addressBlocksMinedRepository = options.addressBlocksMinedRepository;
 
@@ -32,7 +32,7 @@ AddressBlocksMinedService.prototype.start = function (next) {
     this.common.log.info('[AddressBlocksMinedService] Start...');
 
     return async.waterfall([function (callback) {
-        return self.lastBlockRepository.setLastBlockType(TYPE, 0, function(err) {
+        return self.lastBlockRepository.setLastBlockType(TYPE, 0, function (err) {
 
             if (err) {
 
@@ -47,7 +47,7 @@ AddressBlocksMinedService.prototype.start = function (next) {
 
         });
     }, function (callback) {
-        return self.lastBlockRepository.getLastBlockByType(TYPE, function(err, existingType) {
+        return self.lastBlockRepository.getLastBlockByType(TYPE, function (err, existingType) {
 
             if (err) {
 
@@ -61,7 +61,7 @@ AddressBlocksMinedService.prototype.start = function (next) {
             return callback();
 
         })
-    },function (callback) {
+    }, function (callback) {
         return self.node.getInfo(function (err, data) {
 
             if (err) {
@@ -101,7 +101,7 @@ AddressBlocksMinedService.prototype.start = function (next) {
 };
 
 
-AddressBlocksMinedService.prototype._updateCaches = function(next) {
+AddressBlocksMinedService.prototype._updateCaches = function (next) {
     return next();
 };
 
@@ -112,7 +112,7 @@ AddressBlocksMinedService.prototype._updateCaches = function(next) {
  * @return {*}
  * @private
  */
-AddressBlocksMinedService.prototype._processLastBlocks = function(height, next) {
+AddressBlocksMinedService.prototype._processLastBlocks = function (height, next) {
 
     var self = this,
         blocks = [];
@@ -152,7 +152,7 @@ AddressBlocksMinedService.prototype._processLastBlocks = function(height, next) 
  * @param {Number} height
  * @private
  */
-AddressBlocksMinedService.prototype._rapidProtectedUpdateTip = function(height) {
+AddressBlocksMinedService.prototype._rapidProtectedUpdateTip = function (height) {
 
     var self = this;
 
@@ -167,7 +167,7 @@ AddressBlocksMinedService.prototype._rapidProtectedUpdateTip = function(height) 
 
     this.lastTipInProcess = true;
 
-    self.common.log.info('[AddressBlocksMinedService] start upd from ', self.lastCheckedBlock + 1 , ' to ', height);
+    self.common.log.info('[AddressBlocksMinedService] start upd from ', self.lastCheckedBlock + 1, ' to ', height);
 
     return this._processLastBlocks(height, function (err) {
 
@@ -252,7 +252,7 @@ AddressBlocksMinedService.prototype.processBlock = function (blockHeight, next) 
             return callback();
         }
 
-        return self.addressBlocksMinedRepository.createOrUpdateAddress({address: minedBy}, function (err) {
+        return self.addressBlocksMinedRepository.createOrUpdateAddress({ address: minedBy }, function (err) {
             return callback(err);
         });
 
@@ -270,23 +270,34 @@ AddressBlocksMinedService.prototype.processBlock = function (blockHeight, next) 
 
 };
 
-AddressBlocksMinedService.prototype.getBlockReward = function(height) {
-  var halvings = Math.floor(height / 840000);
-  // Force block reward to zero when right shift is undefined.
-  if (halvings >= 64) {
-    return 0;
-  }
+AddressBlocksMinedService.prototype.getBlockReward = function (height) {
+    // Subsidy is cut in half every 840000 blocks which will occur approximately every 4 years.
+    var halvings;
+    if (height <= 20000) {
+        halvings = 0
+    } else {
+        halvings = Math.floor((height - (20000)) / 840000);
+    }
+    // Force block reward to zero when right shift is undefined.
+    if (halvings >= 64) {
+        return 0;
+    }
 
-  // Subsidy is cut in half every 840000 blocks which will occur approximately every 4 years.
-  if (height < 653600) {
-    var subsidy = new BN(12.5 * 1e8);
-  } else {
-    var subsidy = new BN(5 * 1e8);
-  }
+    // Mining slow start
+    // The subsidy is ramped up linearly, skipping the middle payout of
+    // MAX_SUBSIDY/2 to keep the monetary curve consistent with no slow start.
+    if (height < 10000) {
+        var subsidy = new BN(12.5 * 1e8 * (height - 1) / 20000)
+    } else if (height < 20000) {
+        var subsidy = new BN(12.5 * 1e8 * height / 20000)
+    } else if (height < 653600) {
+        var subsidy = new BN(12.5 * 1e8)
+    } else {
+        var subsidy = new BN(6.25 * 1e8)
+    }
+    subsidy = subsidy.shrn(halvings);
 
-  subsidy = subsidy.shrn(halvings);
-
-  return parseInt(subsidy.toString(10));
+    return parseInt(subsidy.toString(10));
 };
 
 module.exports = AddressBlocksMinedService;
